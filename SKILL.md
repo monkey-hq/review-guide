@@ -238,13 +238,13 @@ fall all the way back to the hosted reader if nothing is:
 
     if command -v python3 >/dev/null 2>&1; then
       port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
-      (cd "$tmp" && nohup python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1 &
+      (cd "$tmp" && python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1 &
        echo $! > "$pidfile")
       sleep 0.3
       open "http://127.0.0.1:$port/"
     elif command -v npx >/dev/null 2>&1; then
       port=$(node -e "const s=require('net').createServer();s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port));s.close()})")
-      (cd "$tmp" && nohup npx --yes serve -l "$port" --no-port-switching -L >/dev/null 2>&1 &
+      (cd "$tmp" && npx --yes serve -l "$port" --no-port-switching -L >/dev/null 2>&1 &
        echo $! > "$pidfile")
       sleep 1
       open "http://127.0.0.1:$port/"
@@ -253,14 +253,21 @@ fall all the way back to the hosted reader if nothing is:
       open -R "<path-to-the-saved-file>"
     fi
 
+Deliberately **not** `nohup`'d or disowned: left as a plain background job,
+it's whatever the executing agent's own process/session model already does
+with child processes when a task or session ends — which is as close to
+"cleans itself up" as a portable shell recipe can honestly promise, since
+that behavior isn't something this skill controls or can verify across
+different agents. If your agent harness has its own tracked-background-task
+primitive (e.g. Claude Code's Bash tool has a `run_in_background` option),
+prefer that over the plain `&` above — it ties the server to a stoppable
+task instead of a bare detached process, which is the closest thing to
+guaranteed cleanup actually available here.
+
 The pidfile check keeps at most one of these servers running at a time
-rather than accumulating one per guide opened — good enough for a local dev
-tool, not trying to be a real service. It's self-cleaning across reviews
-(opening the next guide kills the previous server before starting its
-own), but nothing kills the *last* one on its own once you're done — a
-static file server on localhost serving a throwaway tmp dir is low-stakes
-to leave running, but to free it immediately rather than wait for the next
-review or a reboot:
+rather than accumulating one per guide opened, regardless of which of the
+above started it. To free one immediately rather than wait on however its
+session ends:
 
     kill "$(cat /tmp/.monkey-review-guide-server.pid)" 2>/dev/null
     rm -f /tmp/.monkey-review-guide-server.pid
