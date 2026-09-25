@@ -1,0 +1,9 @@
+# Review Guide Reader
+
+> A standalone, static web page that opens a REVIEW-GUIDE-*.md file as a step-by-step, keyboard-navigable code review. No app, extension, or account required to read one.
+
+REVIEW-GUIDE-*.md files are produced by the `review-guide` skill for Claude Code (or any coding agent that supports the open skills format). Dragging or choosing such a file on this page renders it as a guided tour anchored to the exact lines of a diff it explains.
+
+## Resources
+
+- [review-guide skill source](https://github.com/monkey-hq/review-guide): the skill that generates REVIEW-GUIDE-*.md files, installable with `npx skills add monkey-hq/review-guide`.

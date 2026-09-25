@@ -1,0 +1,8 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "Review Guide Reader",
+    "documentationUrl": "https://github.com/monkey-hq/review-guide"
+  },
+  "entries": []
+}
