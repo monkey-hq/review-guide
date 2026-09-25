@@ -198,56 +198,78 @@ strip path separators and `.`/`..` segments, replace anything outside
 
 If you're running locally with a GUI (skip this in a headless/remote
 session), a pre-built copy of the reader ships right next to this file, at
-`reader/` — open it pre-loaded with this exact guide, no drag needed:
+`reader/`. Nothing about how this skill got here — `npx skills add`, a
+manual copy, anything else — tells you what's actually on this machine's
+PATH, so don't assume a runtime; detect one.
+
+Copy the reader into a tmp dir and splice the guide into it as a base64
+data island — this part only needs coreutils (`base64`, `grep`, `head`,
+`tail`), present on essentially any Unix-like machine, so it always runs:
 
     tmp="$(mktemp -d)"
     cp -R "<this skill's own reader/ directory>/." "$tmp/"
-    python3 - "$tmp/index.html" <<'PY'
-    import base64, pathlib, sys
-    html_path = pathlib.Path(sys.argv[1])
-    guide_path = pathlib.Path("<path-to-the-saved-file>")
-    b64 = base64.b64encode(guide_path.read_bytes()).decode("ascii")
-    html = html_path.read_text()
-    html = html.replace(
-        "</body>",
-        f'<script id="monkey-embedded-guide" type="text/plain">{b64}</script></body>',
-    )
-    html_path.write_text(html)
-    PY
+    line=$(grep -n '</body>' "$tmp/index.html" | head -1 | cut -d: -f1)
+    head -n $((line - 1)) "$tmp/index.html" > "$tmp/index.new.html"
+    printf '<script id="monkey-embedded-guide" type="text/plain">' >> "$tmp/index.new.html"
+    base64 < "<path-to-the-saved-file>" | tr -d '\n' >> "$tmp/index.new.html"
+    printf '</script>\n' >> "$tmp/index.new.html"
+    tail -n +"$line" "$tmp/index.html" >> "$tmp/index.new.html"
+    mv "$tmp/index.new.html" "$tmp/index.html"
+
+Reading the guide by **path** (never interpolating its content into a shell
+command) sidesteps any quoting risk from backticks, quotes, or
+`$(...)`-looking text inside the diff — and piping the base64 output
+through redirects rather than a command-line argument keeps this working
+even for a large guide, clear of shell argument-length limits. The
+`<script type="text/plain">` data island is inert — never executed — and
+base64 can't collide with `</script>` or any markup, so no HTML-escaping is
+needed either. `<this skill's own reader/ directory>` is wherever you
+actually loaded this `SKILL.md` from — same convention any other skill's
+sibling reference directory uses.
+
+**Then serve it.** A plain `file://` open does *not* work — Chrome refuses
+to load the reader's module script under the `file:` scheme (CORS blocks it
+outright) — so this needs an actual HTTP origin, and *that* part does need
+some runtime to host it. Try, in order, whatever is actually on PATH, and
+fall all the way back to the hosted reader if nothing is:
+
     pidfile="/tmp/.monkey-review-guide-server.pid"
     [ -f "$pidfile" ] && kill "$(cat "$pidfile")" 2>/dev/null
-    port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
-    (cd "$tmp" && nohup python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1 &
-     echo $! > "$pidfile")
-    sleep 0.3
-    open "http://127.0.0.1:$port/"
 
-Read the guide by **path**, never interpolate its content into the shell —
-sidesteps any quoting risk from backticks, quotes, or `$(...)`-looking text
-inside the diff. The `<script type="text/plain">` data island is inert —
-never executed — and base64 can't collide with `</script>` or any markup,
-so nothing needs HTML-escaping either.
+    if command -v python3 >/dev/null 2>&1; then
+      port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
+      (cd "$tmp" && nohup python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1 &
+       echo $! > "$pidfile")
+      sleep 0.3
+      open "http://127.0.0.1:$port/"
+    elif command -v npx >/dev/null 2>&1; then
+      port=$(node -e "const s=require('net').createServer();s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port));s.close()})")
+      (cd "$tmp" && nohup npx --yes serve -l "$port" --no-port-switching -L >/dev/null 2>&1 &
+       echo $! > "$pidfile")
+      sleep 1
+      open "http://127.0.0.1:$port/"
+    else
+      open https://monkey-reader.sheri11.app
+      open -R "<path-to-the-saved-file>"
+    fi
 
-A plain `file://` open does *not* work here — Chrome refuses to load the
-reader's module script under the `file:` scheme (CORS blocks it outright),
-so this needs an actual HTTP origin. A one-shot `http.server` on localhost
-is the simplest thing that reliably works; the pidfile check keeps at most
-one of these running at a time rather than accumulating one per guide
-opened — good enough for a local dev tool, not trying to be a real service.
+The pidfile check keeps at most one of these servers running at a time
+rather than accumulating one per guide opened — good enough for a local dev
+tool, not trying to be a real service. It's self-cleaning across reviews
+(opening the next guide kills the previous server before starting its
+own), but nothing kills the *last* one on its own once you're done — a
+static file server on localhost serving a throwaway tmp dir is low-stakes
+to leave running, but to free it immediately rather than wait for the next
+review or a reboot:
 
-`<this skill's own reader/ directory>` is wherever you actually loaded this
-`SKILL.md` from — same convention any other skill's sibling reference
-directory uses.
+    kill "$(cat /tmp/.monkey-review-guide-server.pid)" 2>/dev/null
+    rm -f /tmp/.monkey-review-guide-server.pid
 
-If there's no GUI browser, or the reviewer isn't on this machine, fall back
-to the hosted reader — also the only option for someone who receives the
-`.md` file without the skill installed:
-
-    open https://monkey-reader.sheri11.app
-    open -R <path-to-the-saved-file>
-
-`open -R` reveals the file selected in its Finder window rather than just
-opening the folder — the reviewer drags it straight from there into the
+The final `else` branch above is also what to use directly whenever neither
+runtime is available, the reviewer isn't on this machine, or the guide is
+being handed to someone without the skill installed at all: `open -R`
+reveals the file selected in its Finder window rather than just opening
+the folder, so the reviewer drags it straight from there into the
 already-open browser tab. Adapt for non-macOS (`xdg-open` on Linux has no
-reveal-and-select equivalent — just open the containing folder; on Windows,
-`explorer /select,<path>`; `python3` itself is already cross-platform).
+reveal-and-select equivalent — just open the containing folder; on
+Windows, `explorer /select,<path>`).
