@@ -72,6 +72,36 @@ A `"lines"` anchor's `startLine`/`endLine` are 1-based and non-inverted:
 anchor's `filePath` must match a `path` in the `files` array you build in
 step 3 exactly — that's how the reader locates the diff to show under it.
 
+### Optionally, draw the flow
+
+When the change has a shape worth seeing — a request passing through
+handlers, data moving between modules, a command calling others — add a
+`flow`: the reader draws it as a chart on the overview, and each changed node
+opens the step that explains it. The flow is optional; leave it out for
+changes with no flow to speak of (documentation, a rename, a config bump).
+
+    {
+      "title": "what flows, in a few words",
+      "nodes": [
+        {"id": "share-sheet", "label": "ShareSheet", "change": "added", "step": "choose-share-destination"},
+        {"id": "send-message", "label": "sendMessage()", "change": "unchanged", "step": null}
+      ],
+      "edges": [
+        {"from": "share-sheet", "to": "send-message", "label": null}
+      ]
+    }
+
+- Keep it to the 4–10 nodes a reviewer needs: the pieces the change adds or
+  modifies, plus the unchanged ones they plug into. Leave helpers out.
+- `label` is the name as written in the code (`takeShare()`, `ShareInbox`).
+- `change` is `"added" | "modified" | "unchanged"` — lowercase.
+- `step` is the semanticKey of the step that adds or modifies the node, or
+  `null`. Every added or modified node names its step, and the key must be
+  one of your steps' `semanticKey`s exactly.
+- Each edge joins two `id`s from `nodes`, read left to right in the order
+  things happen. Give an edge a `label` only where a branch needs naming
+  (e.g. `"thread"` / `"files"`); otherwise `null`.
+
 ## 3. Build the `files` array from the diff — exact shapes matter here
 
 This is the part a reader has to trust byte-for-byte, so transcribe it
@@ -144,7 +174,8 @@ Note `kind` here (`Added`/`Removed`/`Context`) is capitalized too, and is a
           "status": "unreviewed"
         }
       ],
-      "questions": []
+      "questions": [],
+      "flow": { ...the flow from step 2, or leave this key out... }
     }
 
 `id` (review-level) can be any short unique string. `status` is always
