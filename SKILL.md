@@ -124,6 +124,20 @@ running. Add `--no-open` to serve without opening a browser.
 
 Tell the user where the guide file is and the address it is open at.
 
+If serving does not work — the command fails, the port cannot be opened, the
+page will not load — the guide is still good, so do not leave the user with
+nothing to look at. Open the hosted reader and show them the file to drop
+into it:
+
+    open https://monkey-reader.sheri11.app
+    open -R <path-to-the-guide>
+
+`open -R` reveals the file selected in Finder, ready to drag into the tab
+that just opened. Elsewhere: `xdg-open` on the containing folder (Linux),
+`explorer /select,<path>` (Windows). Say that this way is read-only: asking
+you questions from the guide and sending the review back (step 5) need the
+local server, so skip step 5.
+
 ## 5. Stay on the line while they review
 
 The open guide can talk back to you. The reviewer can select code and ask

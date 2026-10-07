@@ -36,13 +36,15 @@ After the last step, emit exactly one line drawing the shape of the change as a
 small flow — the functions, components, modules or commands it touches and how
 they call or feed each other, read left to right:
 
-{"type":"review-flow","flow":{"title":"what flows, in a few words","nodes":[{"id":"short-unique-id","label":"nameAsWrittenInCode()","change":"added" | "modified" | "unchanged","step":"semanticKey of the step that adds or modifies this node, or null"}],"edges":[{"from":"node id","to":"node id","label":"only when a branch needs naming, else null"}]}}
+{"type":"review-flow","flow":{"title":"what flows, in a few words","nodes":[{"id":"short-unique-id","label":"nameAsWrittenInCode()","note":"role in 5 words or fewer","kind":"trigger" | "function" | "store" | "ui" | "external","change":"added" | "modified" | "unchanged" | "removed","step":"semanticKey of the step that adds, modifies or removes this node, or null"}],"edges":[{"from":"node id","to":"node id","label":"what passes or condition (4 words or fewer)","change":"added" | "removed" | "unchanged"}]}}
 
 Keep it to the 4 to 10 nodes a reviewer needs to see the shape: include the
-unchanged nodes the change plugs into, leave out helpers. Every "added" or
-"modified" node must name its step; every edge must join two node ids from
-"nodes". Omit this line only if the change has no flow to speak of (for
-example, documentation only).
+unchanged nodes the change plugs into (triggers or effects), leave out helpers.
+Every node should carry a concise "note" explaining its role in this change.
+Use "removed" for obsolete nodes or bypassed connections to highlight architectural rerouting.
+Every "added", "modified", or "removed" node must name its step; every edge must join two node ids from
+"nodes". Edge labels describe the data that passes or branching conditions.
+Omit this line only if the change has no flow to speak of (for example, documentation only).
 
 Then emit exactly one final line:
 

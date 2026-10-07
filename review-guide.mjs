@@ -460,6 +460,15 @@ function equal(a, b) {
 }
 //#endregion
 //#region ../../packages/domain/src/GuidedReview.res.mjs
+function decodeChange(raw) {
+	if (raw === void 0) return "unchanged";
+	switch (raw) {
+		case "added": return "added";
+		case "modified": return "modified";
+		case "removed": return "removed";
+		default: return "unchanged";
+	}
+}
 function fromJson(json) {
 	let text = (object, key) => flatMap(object[key], Decode.string);
 	let objects = (object, key) => filterMap(getOr(flatMap(object[key], Decode.array), []), Decode.object);
@@ -467,24 +476,12 @@ function fromJson(json) {
 		let nodes = filterMap(objects(object, "nodes"), (node) => {
 			let match = text(node, "id");
 			let match$1 = text(node, "label");
-			if (match === void 0) return;
-			if (match$1 === void 0) return;
-			let match$2 = text(node, "change");
-			let tmp;
-			if (match$2 !== void 0) switch (match$2) {
-				case "added":
-					tmp = "added";
-					break;
-				case "modified":
-					tmp = "modified";
-					break;
-				default: tmp = "unchanged";
-			}
-			else tmp = "unchanged";
-			return {
+			if (match !== void 0 && match$1 !== void 0) return {
 				id: match,
 				label: match$1,
-				change: tmp,
+				change: decodeChange(text(node, "change")),
+				note: text(node, "note"),
+				kind: text(node, "kind"),
 				step: text(node, "step")
 			};
 		});
@@ -497,13 +494,13 @@ function fromJson(json) {
 				if (match !== void 0 && match$1 !== void 0) return {
 					from: match,
 					to: match$1,
-					label: text(edge, "label")
+					label: text(edge, "label"),
+					change: map(text(edge, "change"), (c) => decodeChange(c))
 				};
 			})
 		};
 	});
 }
-var Flow = { fromJson };
 function validateStep(step) {
 	let stepId = step.id._0;
 	let semanticKeyDiagnostics = step.semanticKey.trim() === "" ? [{
@@ -569,7 +566,7 @@ function encodeChange(change) {
 		case "Image": return ["image", void 0];
 	}
 }
-function decodeChange(kind, fromPath) {
+function decodeChange$1(kind, fromPath) {
 	switch (kind) {
 		case "added": return "Added";
 		case "binary": return "Binary";
@@ -592,7 +589,8 @@ function encodeAnchor(anchor) {
 		endLine: anchor.endLine,
 		fromPath: void 0,
 		note: anchor.note,
-		reviewerNote: anchor.reviewerNote
+		reviewerNote: anchor.reviewerNote,
+		reviewed: anchor.reviewed ? true : void 0
 	};
 	let match = encodeChange(anchor.change);
 	return {
@@ -602,10 +600,12 @@ function encodeAnchor(anchor) {
 		endLine: void 0,
 		fromPath: match[1],
 		note: anchor.note,
-		reviewerNote: anchor.reviewerNote
+		reviewerNote: anchor.reviewerNote,
+		reviewed: anchor.reviewed ? true : void 0
 	};
 }
 function decodeAnchor$1(anchor) {
+	let reviewed = getOr(anchor.reviewed, false);
 	let match = anchor.kind;
 	let match$1 = anchor.startLine;
 	let match$2 = anchor.endLine;
@@ -615,14 +615,16 @@ function decodeAnchor$1(anchor) {
 		startLine: match$1,
 		endLine: match$2,
 		note: anchor.note,
-		reviewerNote: anchor.reviewerNote
+		reviewerNote: anchor.reviewerNote,
+		reviewed
 	};
-	return map(decodeChange(match, anchor.fromPath), (change) => ({
+	return map(decodeChange$1(match, anchor.fromPath), (change) => ({
 		TAG: "File",
 		filePath: anchor.filePath,
 		change,
 		note: anchor.note,
-		reviewerNote: anchor.reviewerNote
+		reviewerNote: anchor.reviewerNote,
+		reviewed
 	}));
 }
 function certaintyKey(certainty) {
@@ -741,6 +743,7 @@ function decode(review) {
 		flow: review.flow
 	};
 }
+var Flow = { fromJson };
 var Codec = {
 	encode,
 	decode
