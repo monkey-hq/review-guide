@@ -28,14 +28,33 @@ Ask your agent for a review guide of a branch or a PR. It writes
 `REVIEW-GUIDE-<branch>.md` at the top of the checkout being reviewed and
 opens it in your browser, served from your own machine.
 
+## Walkthrough
+
+The overview shows the goal, the steps, and a flow chart of how the pieces
+connect:
+
+![Overview with flow chart](docs/assets/overview.png)
+
+Each step explains one intention of the change beside only the code that
+step is about:
+
+![Step walkthrough](docs/assets/guide.png)
+
+Ask the agent questions about any anchored code directly from the review:
+
+![Ask the agent](docs/assets/ask-ai.png)
+
+Mark steps understood or flag items that need review, then export structured
+findings back to the agent session:
+
+![Review conclusion and actions](docs/assets/overview-reviewed.png)
+
+Switch to the complete diff whenever you want the full picture:
+
+![Full diff view](docs/assets/diff.png)
+
 ## Share
 
 The guide is plain Markdown. Send the file to anyone: they drag it into the
 [Review Guide reader](https://monkey-reader.sheri11.app) and get the same
 walkthrough, with nothing to install.
-
----
-
-This repository is published from
-[Monkey Maestro](https://github.com/flo-pereira/monkey-term); it is generated,
-so changes made here directly are overwritten by the next publish.
